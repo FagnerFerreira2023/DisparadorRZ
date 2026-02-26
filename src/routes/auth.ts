@@ -29,19 +29,20 @@ const loginLimiter = rateLimit({
 
 /**
  * POST /auth/login
- * Login with WhatsApp + password
+ * Login with Email + password (fallback for legacy WhatsApp input)
  */
 router.post('/login', loginLimiter, async (req: Request, res: Response) => {
     try {
-        const { whatsapp, password } = req.body as { whatsapp?: string; password?: string };
+        const { email, whatsapp, password } = req.body as { email?: string; whatsapp?: string; password?: string };
 
-        if (!whatsapp || !password) {
+        if ((!email && !whatsapp) || !password) {
             return res.status(400).json({ ok: false, error: 'missing_credentials' });
         }
 
-        const cleanWhatsApp = normalizeWhatsApp(whatsapp);
+        const cleanEmail = (email || '').trim().toLowerCase();
+        const cleanWhatsApp = whatsapp ? normalizeWhatsApp(whatsapp) : '';
 
-        // Find user by WhatsApp
+        // Find user by Email (preferred) with legacy fallback to WhatsApp
         const users = await db.query<{
             id: string;
             tenant_id: string | null;
@@ -54,8 +55,9 @@ router.post('/login', loginLimiter, async (req: Request, res: Response) => {
         }>(
             `SELECT id, tenant_id, name, email, whatsapp, password_hash, role, status
              FROM users
-             WHERE whatsapp = $1`,
-            [cleanWhatsApp]
+             WHERE lower(email) = lower($1)
+                OR whatsapp = $2`,
+            [cleanEmail, cleanWhatsApp]
         );
 
         if (users.length === 0) {

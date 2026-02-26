@@ -332,8 +332,8 @@
     <form id="loginForm">
       <div id="loginFields">
         <div class="form-group">
-          <label for="whatsapp">Seu WhatsApp</label>
-          <input type="text" id="whatsapp" required placeholder="5511999999999">
+          <label for="email">Seu E-mail</label>
+          <input type="email" id="email" required placeholder="seuemail@dominio.com">
         </div>
         <div class="form-group">
           <label for="password">Sua Senha</label>
@@ -479,7 +479,6 @@
       return value.replace(/\D/g, '');
     }
 
-    maskPhone(document.getElementById('whatsapp'));
     maskPhone(document.getElementById('regWhatsapp'));
     maskPhone(document.getElementById('forgotWhatsapp'));
 
@@ -546,7 +545,7 @@
     // Login logic
     loginForm.onsubmit = async (e) => {
       e.preventDefault();
-      const whatsapp = getPureDigits(document.getElementById('whatsapp').value);
+      const email = (document.getElementById('email').value || '').trim().toLowerCase();
       const password = document.getElementById('password').value;
 
       errorMsg.style.display = 'none';
@@ -557,7 +556,7 @@
         const res = await fetch('/auth/login', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ whatsapp, password })
+          body: JSON.stringify({ email, password })
         });
         const data = await res.json();
 
@@ -569,9 +568,12 @@
         } else if (data.error === 'verification_pending') {
           loginFields.style.display = 'none';
           activationStep.style.display = 'block';
-          window.currentWhatsApp = whatsapp;
-          renderDeliveryStatus(null, whatsapp, null);
-          requestOtpAndRenderStatus(whatsapp);
+          const regWhats = getPureDigits(document.getElementById('regWhatsapp')?.value || '');
+          if (regWhats) {
+            window.currentWhatsApp = regWhats;
+            renderDeliveryStatus(null, regWhats, email);
+            requestOtpAndRenderStatus(regWhats);
+          }
         } else {
           showError(data.error || 'Credenciais inválidas');
         }
@@ -613,11 +615,11 @@
 
     function showError(msg) {
       const messages = {
-        'invalid_credentials': 'WhatsApp ou senha incorretos.',
+        'invalid_credentials': 'E-mail ou senha incorretos.',
         'user_blocked': 'Sua conta está bloqueada.',
         'tenant_blocked': 'Sua empresa está bloqueada.',
         'trial_expired': 'Seu teste grátis expirou. Assine um plano.',
-        'verification_pending': 'Confirme seu WhatsApp antes de entrar.'
+        'verification_pending': 'Confirme sua conta com OTP antes de entrar.'
       };
       errorMsg.textContent = messages[msg] || msg;
       errorMsg.style.display = 'block';

@@ -1,67 +1,49 @@
-# DisparadorRZ no Docker Swarm (Portainer)
+# Deploy via Portainer (Docker Swarm Stack)
 
-Este guia sobe o `rz-sender-final` no Swarm usando Stack do Portainer.
+Este diretório contém um modelo oficial de stack para deploy do DisparadorRZ sem SSH na VPS.
 
-## 1) Pré-requisitos
+## Arquivo oficial
 
-- Docker Swarm inicializado (`docker swarm init`)
+- `stack.example.yml`
+
+## Pré-requisitos mínimos
+
+- Docker Swarm inicializado
 - Portainer conectado ao Swarm
-- Traefik já rodando na rede externa `Activa_Rede`
-- DNS apontando para o manager (exemplo: `disparador.tudoautomatizado.com`)
+- Traefik rodando no Swarm
+- Rede externa já existente e conectada ao Traefik (ex.: `Activa_Rede`)
+- Certresolver válido no Traefik (ex.: `letsencryptresolver`)
 
-## 2) Criar rede e volumes externos
+## Passo a passo (sem terminal)
 
-Execute uma vez no node manager:
+1. No Portainer, abra **Stacks**.
+2. Clique em **Add stack**.
+3. Em **Web editor**, cole o conteúdo de `stack.example.yml`.
+4. Altere apenas domínio, rede, senhas e segredos.
+5. Clique em **Deploy the stack**.
 
-```bash
-docker network create --driver overlay --attachable Activa_Rede
-docker volume create disparadorrz_auth
-docker volume create disparadorrz_postgres_data
-```
+## O que o usuário precisa alterar
 
-## 3) Stack no Portainer
+| Campo | Onde alterar | Exemplo |
+|---|---|---|
+| Domínio | `traefik.http.routers.disparadorrz.rule` | `Host(`disparo.seudominio.com`)` |
+| Rede externa | `networks.Activa_Rede.name` e nos serviços | `Activa_Rede` |
+| Certresolver | `traefik.http.routers.disparadorrz.tls.certresolver` | `letsencryptresolver` |
+| Senha do banco | `DB_PASSWORD` e `POSTGRES_PASSWORD` | senha forte igual nos dois |
+| JWT secret | `JWT_SECRET` | segredo forte |
+| JWT refresh secret | `JWT_REFRESH_SECRET` | segredo forte diferente |
+| Superadmin padrão | `DEFAULT_SUPERADMIN_EMAIL` / `DEFAULT_SUPERADMIN_PASSWORD` | `superadmin@pizzbot.cloud` / `Mudar@123` |
+| Admin padrão | `DEFAULT_ADMIN_EMAIL` / `DEFAULT_ADMIN_PASSWORD` | `admin@pizzbot.cloud` / `Mudar@123` |
 
-Use o arquivo `stack-disparadorrz.yml`.
+### Migração automática de conta antiga
 
-Antes de subir, troque obrigatoriamente:
+O seed migra e sincroniza automaticamente a conta legada (`admin@saas.local`) para o novo padrão de superadmin.
+Se você usa outro e-mail antigo, defina `LEGACY_SUPERADMIN_EMAIL` na stack.
 
-- `JWT_SECRET`
-- `JWT_REFRESH_SECRET`
-- `DB_PASSWORD`
-- Host da rota Traefik: `disparador.tudoautomatizado.com`
+## Observação importante sobre imagem GHCR
 
-## 4) Observações importantes
+A stack usa a imagem oficial:
 
-- O container roda migração automaticamente com:
+- `ghcr.io/fagnerferreira2023/disparadorrz:latest`
 
-```bash
-node dist/db/migrate.js && node dist/index.js
-```
-
-- Sessões WhatsApp ficam persistidas no volume `disparadorrz_auth`.
-- Banco PostgreSQL fica persistido no volume `disparadorrz_postgres_data`.
-
-## 5) Primeiro acesso
-
-Após subir o stack e estabilizar:
-
-- URL: `https://disparador.tudoautomatizado.com`
-- Healthcheck: `https://disparador.tudoautomatizado.com/health`
-
-## 6) Comandos úteis
-
-```bash
-docker service ls
-docker service logs -f <stack>_disparadorrz_api
-docker service ps <stack>_disparadorrz_api
-```
-
-## 7) Publicação de imagem (GHCR)
-
-O stack usa:
-
-```text
-ghcr.io/fagnerferreira2023/disparadorrz:latest
-```
-
-Publique a imagem antes de subir o stack.
+Se seu GHCR estiver privado, configure credencial de registry no Portainer para o deploy funcionar sem erro de pull.

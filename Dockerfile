@@ -25,6 +25,8 @@ RUN npm install --omit=dev && npm cache clean --force
 
 # Copia apenas os arquivos compilados e os estáticos
 COPY --from=builder /app/dist ./dist
+COPY --from=builder /app/src/db/schema.sql ./dist/db/schema.sql
+COPY --from=builder /app/src/db/migrations ./dist/db/migrations
 COPY --from=builder /app/public ./public
 
 # Cria a pasta de sessões para persistência

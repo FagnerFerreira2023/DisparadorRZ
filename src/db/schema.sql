@@ -14,7 +14,7 @@ CREATE EXTENSION IF NOT EXISTS "pgcrypto";  -- gen_random_uuid()
 DO $$
 BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'tenant_status') THEN
-    CREATE TYPE tenant_status AS ENUM ('active', 'blocked');
+    CREATE TYPE tenant_status AS ENUM ('active', 'blocked', 'pending_verification', 'trial_expired');
   END IF;
 
   IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'user_role') THEN
@@ -50,6 +50,7 @@ CREATE TABLE IF NOT EXISTS tenants (
   name             text NOT NULL,
   slug             text UNIQUE, -- Adicionado para URLs amigáveis
   status           tenant_status NOT NULL DEFAULT 'active',
+  last_otp         text NULL,
 
   -- limites (SaaS)
   instance_limit   integer NOT NULL DEFAULT 1 CHECK (instance_limit >= 0),
@@ -70,6 +71,7 @@ CREATE TABLE IF NOT EXISTS users (
   tenant_id      uuid NULL REFERENCES tenants(id) ON DELETE CASCADE,
   name           text NOT NULL,
   email          text NOT NULL,
+  whatsapp       text,
   password_hash  text NOT NULL,
   role           user_role NOT NULL DEFAULT 'user_tenant',
   status         user_status NOT NULL DEFAULT 'active',
@@ -87,8 +89,38 @@ CREATE TABLE IF NOT EXISTS users (
 );
 
 CREATE UNIQUE INDEX IF NOT EXISTS ux_users_email ON users(lower(email));
+CREATE UNIQUE INDEX IF NOT EXISTS ux_users_whatsapp ON users(whatsapp);
 CREATE INDEX IF NOT EXISTS idx_users_tenant ON users(tenant_id);
 CREATE INDEX IF NOT EXISTS idx_users_role ON users(role);
+
+-- =========================================================
+-- AUTH: OTP codes
+-- =========================================================
+CREATE TABLE IF NOT EXISTS auth_otps (
+  id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  whatsapp      text NOT NULL,
+  otp_hash      text NOT NULL,
+  expires_at    timestamptz NOT NULL,
+  attempts      integer NOT NULL DEFAULT 0,
+  locked_until  timestamptz NULL,
+  used_at       timestamptz NULL,
+  created_at    timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_otp_whatsapp ON auth_otps(whatsapp);
+
+-- =========================================================
+-- GLOBAL SETTINGS (OTP config etc.)
+-- =========================================================
+CREATE TABLE IF NOT EXISTS global_settings (
+  key          text PRIMARY KEY,
+  value        jsonb NOT NULL,
+  updated_at   timestamptz NOT NULL DEFAULT now()
+);
+
+INSERT INTO global_settings (key, value)
+VALUES ('otp_config', '{"url": "", "token": "", "template": "Seu código é {{code}}"}')
+ON CONFLICT (key) DO NOTHING;
 
 -- =========================================================
 -- AUTH: refresh tokens

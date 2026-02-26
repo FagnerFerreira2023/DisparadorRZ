@@ -1,0 +1,87 @@
+version: "3.7"
+services:
+
+## --------------------------- DISPARADOR RZ --------------------------- ##
+
+  disparadorrz_api:
+    image: ghcr.io/fagnerferreira2023/disparadorrz:latest ## Se GHCR privado, configurar credencial no Portainer
+
+    volumes:
+      - disparadorrz_auth:/app/auth
+
+    networks:
+      - Activa_Rede ## Nome da rede interna
+
+    environment:
+    ## ⚙️ Configurações Gerais
+      - NODE_ENV=production
+      - PORT=8787
+      - AUTH_FOLDER=auth
+
+    ## 🔐 Segurança JWT
+      - JWT_SECRET=e7146a68ef7323b64b0cf3af3a2a5c5e89d82bc305cf62992b111d9175004885
+      - JWT_REFRESH_SECRET=41e5c78e3b0e74d9752d76b37da7c32069f0b9f01a484135ff28094db34d9d48
+
+    ## 🗄️ Configuração do Banco de Dados
+      - DB_HOST=disparadorrz_postgres
+      - DB_PORT=5432
+      - DB_NAME=rz_sender
+      - DB_USER=rz_sender
+      - DB_PASSWORD=x6fgUrNpHhQaQbpoXcuMflc0kB1xo1AJ
+
+    ## ⚠️ Legado (opcional)
+      - API_KEY=
+
+    command: ["sh", "-c", "if [ -f dist/db/schema.sql ]; then node dist/db/migrate.js || echo '[STARTUP] migrate falhou, seguindo'; else echo '[STARTUP] schema.sql não encontrado, pulando migrate'; fi; if [ -f dist/db/seed.js ]; then node dist/db/seed.js || echo '[STARTUP] seed falhou, seguindo'; else echo '[STARTUP] seed.js não encontrado, pulando seed'; fi; node dist/index.js"]
+
+    deploy:
+      mode: replicated
+      replicas: 1
+      placement:
+        constraints:
+          - node.role == manager
+      labels:
+        - traefik.enable=1
+        - traefik.http.routers.disparadorrz_teste2.rule=Host(`disparadorteste2.pizzbot.cloud`) ## Url do DisparadorRZ
+        - traefik.http.routers.disparadorrz_teste2.entrypoints=websecure
+        - traefik.http.routers.disparadorrz_teste2.priority=1
+        - traefik.http.routers.disparadorrz_teste2.tls.certresolver=letsencryptresolver ## Ajuste para o nome do seu certresolver
+        - traefik.http.routers.disparadorrz_teste2.service=disparadorrz_teste2
+        - traefik.http.services.disparadorrz_teste2.loadbalancer.server.port=8787
+        - traefik.http.services.disparadorrz_teste2.loadbalancer.passHostHeader=true
+
+## --------------------------- DISPARADOR RZ --------------------------- ##
+
+  disparadorrz_postgres:
+    image: postgres:15-alpine ## Versão do PostgreSQL
+
+    volumes:
+      - disparadorrz_postgres_data:/var/lib/postgresql/data
+
+    networks:
+      - Activa_Rede ## Nome da rede interna
+
+    environment:
+      - POSTGRES_USER=rz_sender
+      - POSTGRES_PASSWORD=x6fgUrNpHhQaQbpoXcuMflc0kB1xo1AJ
+      - POSTGRES_DB=rz_sender
+
+    deploy:
+      placement:
+        constraints:
+          - node.role == manager
+      resources:
+        limits:
+          cpus: "1"
+          memory: 1024M
+
+## --------------------------- DISPARADOR RZ --------------------------- ##
+
+volumes:
+  disparadorrz_auth:
+  disparadorrz_postgres_data:
+
+networks:
+  Activa_Rede: ## Nome da rede interna
+    external: true
+    name: Activa_Rede ## Nome da rede interna

@@ -4,7 +4,7 @@ services:
 ## --------------------------- DISPARADOR RZ --------------------------- ##
 
   disparadorrz_api:
-    image: ghcr.io/fagnerferreira2023/disparadorrz:latest ## Imagem publicada no GHCR
+    image: ${DISPARADOR_IMAGE:-docker.io/seu_usuario/disparadorrz:latest} ## Imagem pública no Docker Hub
 
     volumes:
       - disparadorrz_auth:/app/auth
@@ -15,24 +15,42 @@ services:
     environment:
     ## ⚙️ Configurações Gerais
       - NODE_ENV=production
-      - PORT=8787
-      - AUTH_FOLDER=auth
+      - PORT=${APP_PORT:-8787}
+      - AUTH_FOLDER=${AUTH_FOLDER:-auth}
 
     ## 🔐 Segurança JWT
-      - JWT_SECRET=ALTERE_PARA_UM_SEGREDO_FORTE
-      - JWT_REFRESH_SECRET=ALTERE_PARA_UM_SEGREDO_FORTE_2
+      - JWT_SECRET=${JWT_SECRET:-ALTERE_PARA_UM_SEGREDO_FORTE}
+      - JWT_REFRESH_SECRET=${JWT_REFRESH_SECRET:-ALTERE_PARA_UM_SEGREDO_FORTE_2}
 
     ## 🗄️ Configuração do Banco de Dados
       - DB_HOST=disparadorrz_postgres
       - DB_PORT=5432
-      - DB_NAME=rz_sender
-      - DB_USER=rz_sender
-      - DB_PASSWORD=ALTERE_123456_POSTGRES
+      - DB_NAME=${DB_NAME:-rz_sender}
+      - DB_USER=${DB_USER:-rz_sender}
+      - DB_PASSWORD=${DB_PASSWORD:-ALTERE_123456_POSTGRES}
 
     ## ⚠️ Legado (opcional)
-      - API_KEY=123456abc
+      - API_KEY=${API_KEY:-}
 
-    command: ["sh", "-c", "node dist/db/migrate.js && node dist/index.js"]
+    ## 📧 SMTP / OTP (enviado por e-mail)
+      - SMTP_HOST=${SMTP_HOST:-smtp.gmail.com}
+      - SMTP_PORT=${SMTP_PORT:-587}
+      - SMTP_SECURE=${SMTP_SECURE:-false}
+      - SMTP_USER=${SMTP_USER:-tudoautomatizadobr@gmail.com}
+      - SMTP_PASS=${SMTP_PASS:-kiokckzuxczwzqpl}
+      - SMTP_FROM=${SMTP_FROM:-tudoautomatizadobr@gmail.com}
+      - DEFAULT_SUPERADMIN_EMAIL=${DEFAULT_SUPERADMIN_EMAIL:-superadmin@pizzbot.cloud}
+      - DEFAULT_SUPERADMIN_PASSWORD=${DEFAULT_SUPERADMIN_PASSWORD:-Mudar@123}
+      - DEFAULT_SUPERADMIN_WHATSAPP=${DEFAULT_SUPERADMIN_WHATSAPP:-5513981577934}
+      - DEFAULT_ADMIN_EMAIL=${DEFAULT_ADMIN_EMAIL:-admin@pizzbot.cloud}
+      - DEFAULT_ADMIN_PASSWORD=${DEFAULT_ADMIN_PASSWORD:-Mudar@123}
+      - LEGACY_SUPERADMIN_EMAIL=${LEGACY_SUPERADMIN_EMAIL:-admin@saas.local}
+      - OTP_EMAIL_ENABLED=${OTP_EMAIL_ENABLED:-true}
+      - OTP_WHATSAPP_ENABLED=${OTP_WHATSAPP_ENABLED:-true}
+      - OTP_SMS_ENABLED=${OTP_SMS_ENABLED:-false}
+      - OTP_CONFIRM_URL=${OTP_CONFIRM_URL:-https://disparo.pizzbot.cloud/login.html}
+
+    command: ["sh", "-c", "if [ -f dist/db/schema.sql ]; then node dist/db/migrate.js || echo '[STARTUP] migrate falhou, seguindo'; else echo '[STARTUP] schema.sql não encontrado, pulando migrate'; fi; if [ -f dist/db/seed.js ]; then node dist/db/seed.js || echo '[STARTUP] seed falhou, seguindo'; else echo '[STARTUP] seed.js não encontrado, pulando seed'; fi; node dist/index.js"]
 
     deploy:
       mode: replicated
@@ -42,15 +60,13 @@ services:
           - node.role == manager
       labels:
         - traefik.enable=1
-        - traefik.http.routers.disparadorrz.rule=Host(`disparo.pizzbot.cloud`) ## Url do DisparadorRZ
+        - traefik.http.routers.disparadorrz.rule=Host(`${APP_DOMAIN:-disparo.pizzbot.cloud}`) ## Url do DisparadorRZ
         - traefik.http.routers.disparadorrz.entrypoints=websecure
         - traefik.http.routers.disparadorrz.priority=1
-        - traefik.http.routers.disparadorrz.tls.certresolver=letsencryptresolver ## Ajuste para o nome do seu certresolver
+        - traefik.http.routers.disparadorrz.tls.certresolver=${TRAEFIK_CERTRESOLVER:-letsencryptresolver} ## Ajuste para o nome do seu certresolver
         - traefik.http.routers.disparadorrz.service=disparadorrz
-        - traefik.http.services.disparadorrz.loadbalancer.server.port=8787
+        - traefik.http.services.disparadorrz.loadbalancer.server.port=${APP_PORT:-8787}
         - traefik.http.services.disparadorrz.loadbalancer.passHostHeader=true
-
-## --------------------------- DISPARADOR RZ --------------------------- ##
 
   disparadorrz_postgres:
     image: postgres:15-alpine ## Versão do PostgreSQL
@@ -62,9 +78,9 @@ services:
       - Activa_Rede ## Nome da rede interna
 
     environment:
-      - POSTGRES_USER=rz_sender
-      - POSTGRES_PASSWORD=ALTERE_123456_POSTGRES
-      - POSTGRES_DB=rz_sender
+      - POSTGRES_USER=${DB_USER:-rz_sender}
+      - POSTGRES_PASSWORD=${DB_PASSWORD:-ALTERE_123456_POSTGRES}
+      - POSTGRES_DB=${DB_NAME:-rz_sender}
 
     deploy:
       placement:
@@ -88,4 +104,4 @@ volumes:
 networks:
   Activa_Rede: ## Nome da rede interna
     external: true
-    name: Activa_Rede ## Nome da rede interna
+    name: ${SWARM_PUBLIC_NETWORK:-Activa_Rede} ## Nome da rede interna

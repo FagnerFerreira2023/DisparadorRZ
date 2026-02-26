@@ -1,3 +1,10 @@
+# Stack Information
+
+**Stack:** disparadorrz-teste3
+**Super Admin:** superadmin@whatszap.cloud
+**Admin:** admin@whatszap.cloud
+**Password (both):** Mudar@123
+
 # Deploy via Portainer (Docker Swarm Stack)
 
 Este diretório contém um modelo oficial de stack para deploy do DisparadorRZ sem SSH na VPS.

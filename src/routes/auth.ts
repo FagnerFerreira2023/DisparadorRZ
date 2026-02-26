@@ -42,7 +42,16 @@ router.post('/login', loginLimiter, async (req: Request, res: Response) => {
         const cleanEmail = (email || '').trim().toLowerCase();
         const cleanWhatsApp = whatsapp ? normalizeWhatsApp(whatsapp) : '';
 
-        // Find user by Email (preferred) with legacy fallback to WhatsApp
+
+        // Verifica se existe algum usuário cadastrado
+        const totalUsers = await db.query<{ count: number }>(
+            'SELECT COUNT(*)::int AS count FROM users'
+        );
+        if (totalUsers[0].count === 0) {
+            return res.status(200).json({ ok: false, error: 'setup_required' });
+        }
+
+        // Busca usuário por email ou whatsapp
         const users = await db.query<{
             id: string;
             tenant_id: string | null;

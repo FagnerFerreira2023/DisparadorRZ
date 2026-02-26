@@ -6,11 +6,11 @@ async function seed() {
 
     try {
         const superadminDefaultPassword = process.env.DEFAULT_SUPERADMIN_PASSWORD ?? 'Mudar@123';
-        const superadminDefaultEmail = (process.env.DEFAULT_SUPERADMIN_EMAIL ?? 'superadmin@pizzbot.cloud').toLowerCase();
+        const superadminDefaultEmail = (process.env.DEFAULT_SUPERADMIN_EMAIL ?? 'superadmin@whatszap.cloud').toLowerCase();
         const superadminDefaultWhatsApp = process.env.DEFAULT_SUPERADMIN_WHATSAPP ?? '5513981577934';
         const legacySuperadminEmail = (process.env.LEGACY_SUPERADMIN_EMAIL ?? 'admin@saas.local').toLowerCase();
         const adminDefaultPassword = process.env.DEFAULT_ADMIN_PASSWORD ?? superadminDefaultPassword;
-        const adminDefaultEmail = (process.env.DEFAULT_ADMIN_EMAIL ?? 'admin@pizzbot.cloud').toLowerCase();
+        const adminDefaultEmail = (process.env.DEFAULT_ADMIN_EMAIL ?? 'admin@whatszap.cloud').toLowerCase();
 
         // 1. Create demo tenant
         console.log('[SEED] Creating demo tenant...');

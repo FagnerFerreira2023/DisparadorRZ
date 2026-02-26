@@ -27,10 +27,10 @@ services:
       - DB_PORT=5432
       - DB_NAME=rz_sender
       - DB_USER=rz_sender
-      - DB_PASSWORD=ALTERE_SENHA_POSTGRES
+      - DB_PASSWORD=ALTERE_123456_POSTGRES
 
     ## ⚠️ Legado (opcional)
-      - API_KEY=
+      - API_KEY=123456abc
 
     command: ["sh", "-c", "node dist/db/migrate.js && node dist/index.js"]
 
@@ -42,10 +42,10 @@ services:
           - node.role == manager
       labels:
         - traefik.enable=1
-        - traefik.http.routers.disparadorrz.rule=Host(`disparador.tudoautomatizado.com`) ## Url do DisparadorRZ
+        - traefik.http.routers.disparadorrz.rule=Host(`disparo.pizzbot.cloud`) ## Url do DisparadorRZ
         - traefik.http.routers.disparadorrz.entrypoints=websecure
         - traefik.http.routers.disparadorrz.priority=1
-        - traefik.http.routers.disparadorrz.tls.certresolver=letsencryptresolver
+        - traefik.http.routers.disparadorrz.tls.certresolver=letsencryptresolver ## Ajuste para o nome do seu certresolver
         - traefik.http.routers.disparadorrz.service=disparadorrz
         - traefik.http.services.disparadorrz.loadbalancer.server.port=8787
         - traefik.http.services.disparadorrz.loadbalancer.passHostHeader=true
@@ -63,7 +63,7 @@ services:
 
     environment:
       - POSTGRES_USER=rz_sender
-      - POSTGRES_PASSWORD=ALTERE_SENHA_POSTGRES
+      - POSTGRES_PASSWORD=ALTERE_123456_POSTGRES
       - POSTGRES_DB=rz_sender
 
     deploy:

@@ -137,7 +137,13 @@ router.post('/login', loginLimiter, async (req: Request, res: Response) => {
             },
         });
     } catch (err) {
-        console.error('[AUTH] Login error:', err);
+        const { email, whatsapp } = req.body || {};
+        console.error('[AUTH] Login error:', {
+            error: err,
+            email,
+            whatsapp,
+            time: new Date().toISOString()
+        });
         return res.status(500).json({ ok: false, error: 'internal_error' });
     }
 });

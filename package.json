@@ -1,0 +1,41 @@
+{
+  "name": "rz-sender",
+  "version": "1.0.0",
+  "description": "RZ Sender - Plataforma de Múltiplos Atendimentos via WhatsApp",
+  "type": "module",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "tsx watch src/index.ts",
+    "migrate": "tsx src/db/migrate.ts",
+    "seed": "tsx src/db/seed.ts"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "dependencies": {
+    "@types/jsonwebtoken": "^9.0.10",
+    "axios": "^1.13.5",
+    "baileys": "github:FagnerFerreira2023/InfiniteAPI",
+    "bcryptjs": "^3.0.2",
+    "dotenv": "^16.4.5",
+    "express": "^4.21.0",
+    "express-rate-limit": "^8.2.1",
+    "jsonwebtoken": "^9.0.3",
+    "nodemailer": "^8.0.1",
+    "pg": "^8.18.0",
+    "qrcode": "^1.5.4"
+  },
+  "devDependencies": {
+    "@types/axios": "^0.9.36",
+    "@types/bcryptjs": "^2.4.6",
+    "@types/express": "^4.17.21",
+    "@types/node": "^22.0.0",
+    "@types/nodemailer": "^7.0.9",
+    "@types/pg": "^8.16.0",
+    "@types/qrcode": "^1.5.5",
+    "tsx": "^4.19.0",
+    "typescript": "^5.6.0"
+  }
+}

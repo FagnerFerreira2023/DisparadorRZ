@@ -1,0 +1,921 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Dashboard — RZ Sender</title>
+  <link rel="icon" type="image/svg+xml" href="/whatsapp-icon.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&family=JetBrains+Mono:wght@400;500&display=swap"
+    rel="stylesheet">
+  <link rel="stylesheet" href="/styles.css?v=20260226-1">
+</head>
+
+<body>
+  <div class="app">
+    <header class="header">
+      <div class="header-top">
+        <h1 class="logo">
+          <img src="/whatsapp-icon.svg" alt="WhatsApp" class="logo-icon">
+          <span>RZ Sender</span>
+        </h1>
+        <div id="userProfile" class="user-profile hidden">
+          <span id="userName">Usuário</span>
+          <button type="button" id="btnLogout" class="btn btn-small btn-ghost">Sair</button>
+        </div>
+      </div>
+      <p class="tagline">WhatsApp · Múltiplas contas e disparos</p>
+      <div id="tenantBadge" class="tenant-badge hidden">Empresa: <span id="tenantName">...</span></div>
+    </header>
+
+    <nav class="tabs">
+      <button type="button" class="tab active" data-tab="conexoes">Conexões</button>
+      <button type="button" class="tab" data-tab="disparos">Disparos</button>
+      <button type="button" class="tab hidden" id="tabUsers" data-tab="admin-users">Usuários</button>
+      <button type="button" class="tab hidden" id="tabAdmin" data-tab="admin">Admin</button>
+      <button type="button" class="tab hidden" id="tabTenants" data-tab="admin-tenants">Tenants</button>
+      <button type="button" class="tab hidden" id="tabOtp" data-tab="admin-otp">Config OTP</button>
+      <button type="button" class="tab hidden" id="tabDocs" data-tab="admin-docs">Documentação</button>
+      <button type="button" class="tab hidden" id="tabCredentials" data-tab="admin-credentials">Credenciais API</button>
+    </nav>
+
+    <main class="main">
+      <section id="conexoes" class="panel active">
+        <div class="card">
+          <h2>Conexões salvas</h2>
+          <p class="card-hint">Clique em Conectar para abrir a sessão (QR se necessário).</p>
+          <ul id="savedList" class="saved-list"></ul>
+        </div>
+        <div class="card">
+          <h2>Conectar por nome</h2>
+          <div class="form-row">
+            <label for="connectInstanceSelect">Escolha uma conexão</label>
+            <select id="connectInstanceSelect">
+              <option value="">— Nova conexão —</option>
+            </select>
+          </div>
+          <div class="form-row" id="connectNewNameRow">
+            <label for="instanceName">Nome da nova instância</label>
+            <input type="text" id="instanceName" value="main" placeholder="ex: main, vendas">
+          </div>
+          <button type="button" id="btnConnect" class="btn btn-primary">Criar / Conectar</button>
+          <div id="qrContainer" class="qr-container hidden">
+            <p>Escaneie o QR no WhatsApp:</p>
+            <img id="qrImage" alt="QR Code" class="qr-image">
+            <p class="qr-hint">Ou abra WhatsApp → Aparelhos conectados → Conectar aparelho</p>
+          </div>
+          <div id="connectStatus" class="status hidden"></div>
+        </div>
+        <div class="card">
+          <h2>Instâncias ativas</h2>
+          <ul id="instanceList" class="instance-list"></ul>
+          <button type="button" id="btnRefreshList" class="btn btn-ghost">Atualizar lista</button>
+        </div>
+      </section>
+
+      <section id="disparos" class="panel">
+        <div class="card form-card">
+          <div class="form-row">
+            <label for="dispatchInstance">Instância</label>
+            <select id="dispatchInstance">
+              <option value="main">main</option>
+            </select>
+          </div>
+          <div class="form-row">
+            <div class="field-label-actions">
+              <label for="dispatchTo">Destinatários</label>
+              <div class="field-actions">
+                <button type="button" id="btnImportCsvRecipients" class="btn btn-small btn-ghost">Importar CSV</button>
+                <button type="button" id="btnDownloadCsvModel" class="btn btn-small btn-ghost">Baixar modelo CSV</button>
+              </div>
+            </div>
+            <textarea id="dispatchTo" rows="4"
+              placeholder="Um número por linha (com DDI)&#10;Ex: 553598828503&#10;5511999999999"></textarea>
+            <span class="field-hint">Use um número por linha. Para um único número, digite uma linha.</span>
+            <span class="field-hint">Variáveis por linha: <strong>numero,var1,var2</strong> (ex: <strong>5511999999999,João,Plano A</strong>). Use no texto: <strong>{{var1}}</strong> e <strong>{{var2}}</strong>.</span>
+            <span id="dispatchCsvFeedback" class="field-hint hidden"></span>
+            <input type="file" id="dispatchCsvInput" accept=".csv,text/csv" class="hidden">
+          </div>
+          <div class="form-row mailing-delay">
+            <label for="dispatchDelayMin">Intervalo entre envios (segundos)</label>
+            <div class="delay-inputs">
+              <input type="number" id="dispatchDelayMin" value="2" min="0" max="300" placeholder="Mín"> <span>a</span>
+              <input type="number" id="dispatchDelayMax" value="5" min="0" max="300" placeholder="Máx">
+            </div>
+            <span class="field-hint">Tempo aleatório entre cada envio (evita bloqueio).</span>
+          </div>
+          <div class="form-row">
+            <label for="dispatchType">Tipo de mensagem</label>
+            <select id="dispatchType">
+              <option value="menu">Menu (texto numerado)</option>
+              <option value="buttons">Botões (quick reply)</option>
+              <option value="interactive">Botões CTA (URL / Copiar / Ligar)</option>
+              <option value="list">Lista dropdown</option>
+              <option value="poll">Enquete</option>
+              <option value="carousel">Carrossel</option>
+            </select>
+          </div>
+
+          <!-- Menu -->
+          <div id="formMenu" class="dispatch-form">
+            <div class="form-row"><label>Título</label><input type="text" id="menuTitle" placeholder="Menu de Opções">
+            </div>
+            <div class="form-row"><label>Texto</label><textarea id="menuText" rows="2"
+                placeholder="Escolha uma opção:"></textarea></div>
+            <div class="form-row">
+              <label>Opções</label>
+              <div id="menuOptionsList" class="dynamic-list"></div>
+              <button type="button" class="btn btn-small btn-ghost add-item" data-for="menuOptions">+ Adicionar
+                opção</button>
+            </div>
+            <div class="form-row"><label>Rodapé</label><input type="text" id="menuFooter"
+                placeholder="Responda com número"></div>
+          </div>
+
+          <!-- Botões -->
+          <div id="formButtons" class="dispatch-form hidden">
+            <div class="form-row"><label>Texto</label><textarea id="buttonsText" rows="2"
+                placeholder="Como posso ajudar?"></textarea></div>
+            <div class="form-row"><label>Rodapé</label><input type="text" id="buttonsFooter"
+                placeholder="Atendimento 24h"></div>
+            <div class="form-row">
+              <label>Botões (máx 3)</label>
+              <div id="buttonsList" class="dynamic-list"></div>
+              <button type="button" class="btn btn-small btn-ghost add-item" data-for="buttons">+ Adicionar
+                botão</button>
+            </div>
+          </div>
+
+          <!-- Interactive CTA -->
+          <div id="formInteractive" class="dispatch-form hidden">
+            <div class="form-row"><label>Texto</label><textarea id="interactiveText" rows="3"
+                placeholder="Mensagem com CTAs"></textarea></div>
+            <div class="form-row"><label>Rodapé</label><input type="text" id="interactiveFooter"></div>
+            <div class="form-row">
+              <label>Botões CTA</label>
+              <div id="interactiveList" class="dynamic-list"></div>
+              <button type="button" class="btn btn-small btn-ghost add-item" data-for="interactive">+ Adicionar
+                botão</button>
+            </div>
+          </div>
+
+          <!-- Lista -->
+          <div id="formList" class="dispatch-form hidden">
+            <div class="form-row"><label>Texto</label><textarea id="listText" rows="2"
+                placeholder="Escolha uma categoria:"></textarea></div>
+            <div class="form-row"><label>Texto do botão</label><input type="text" id="listButtonText"
+                value="Ver Cardápio" placeholder="Ver opções"></div>
+            <div class="form-row"><label>Rodapé</label><input type="text" id="listFooter"
+                placeholder="Delivery grátis acima de R$ 50"></div>
+            <div class="form-row">
+              <label>Seções</label>
+              <div id="listSectionsList" class="dynamic-list"></div>
+              <button type="button" class="btn btn-small btn-ghost add-item" data-for="listSections">+ Adicionar
+                seção</button>
+            </div>
+          </div>
+
+          <!-- Enquete -->
+          <div id="formPoll" class="dispatch-form hidden">
+            <div class="form-row"><label>Pergunta</label><input type="text" id="pollName"
+                placeholder="Qual sua linguagem favorita?"></div>
+            <div class="form-row"><label>Quantas pode escolher</label><input type="number" id="pollSelectable" value="1"
+                min="1"></div>
+            <div class="form-row">
+              <label>Opções</label>
+              <div id="pollOptionsList" class="dynamic-list"></div>
+              <button type="button" class="btn btn-small btn-ghost add-item" data-for="pollOptions">+ Adicionar
+                opção</button>
+            </div>
+          </div>
+
+          <!-- Carrossel -->
+          <div id="formCarousel" class="dispatch-form hidden">
+            <div class="form-row"><label>Texto (acima dos cards)</label><input type="text" id="carouselText"
+                placeholder="Ofertas especiais"></div>
+            <div class="form-row"><label>Rodapé</label><input type="text" id="carouselFooter"></div>
+            <div class="form-row">
+              <label>Cards</label>
+              <div id="carouselCardsList" class="dynamic-list"></div>
+              <button type="button" class="btn btn-small btn-ghost add-item" data-for="carouselCards">+ Adicionar
+                card</button>
+            </div>
+          </div>
+
+          <button type="button" id="btnSend" class="btn btn-primary btn-send">Enviar</button>
+          <div id="sendResult" class="result hidden"></div>
+        </div>
+      </section>
+      <section id="admin-users" class="panel">
+        <div class="card">
+          <div class="card-header-actions">
+            <h2>Usuários da Empresa</h2>
+            <button type="button" id="btnNewTenantUser" class="btn btn-small btn-primary">+ Novo Usuário</button>
+          </div>
+          <div class="table-responsive">
+            <table class="admin-table">
+              <thead>
+                <tr>
+                  <th>Nome</th>
+                  <th>Email</th>
+                  <th>Role</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody id="tenantUserList"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <section id="admin" class="panel">
+        <div class="card">
+          <h2>Métricas do Sistema</h2>
+          <div id="adminMetrics" class="metrics-grid">
+            <div class="metric-card">
+              <span class="metric-label">Tenants</span>
+              <span id="metricTenants" class="metric-value">-</span>
+            </div>
+            <div class="metric-card">
+              <span class="metric-label">Usuários</span>
+              <span id="metricUsers" class="metric-value">-</span>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header-actions">
+            <h2>Gestão de Tenants</h2>
+            <button type="button" id="btnNewTenant" class="btn btn-small btn-primary">+ Novo Tenant</button>
+          </div>
+          <div class="table-responsive">
+            <table class="admin-table">
+              <thead>
+                <tr>
+                  <th>Nome</th>
+                  <th>Slug</th>
+                  <th>Limite Instâncias</th>
+                  <th>Limite Diário</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody id="tenantList"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header-actions">
+            <h2>Gestão de Usuários</h2>
+            <button type="button" id="btnNewUser" class="btn btn-small btn-ghost">+ Novo Usuário</button>
+          </div>
+          <div class="table-responsive">
+            <table class="admin-table">
+              <thead>
+                <tr>
+                  <th>Nome</th>
+                  <th>Email</th>
+                  <th>Tenant</th>
+                  <th>Role</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody id="adminUserList"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <section id="admin-tenants" class="panel">
+        <div class="card">
+          <div class="card-header-actions">
+            <h2>Gerenciamento de Tenants</h2>
+            <button type="button" id="btnCreateNewTenant" class="btn btn-small btn-primary">+ Novo Tenant</button>
+          </div>
+          <div class="table-responsive">
+            <table class="admin-table">
+              <thead>
+                <tr>
+                  <th>Nome</th>
+                  <th>Status</th>
+                  <th>Limite Instâncias</th>
+                  <th>Limite Diário</th>
+                  <th>Último código enviado</th>
+                  <th>Criado em</th>
+                  <th>Ações</th>
+                </tr>
+              </thead>
+              <tbody id="tenantsTableBody">
+                <tr>
+                  <td colspan="7" class="text-center">Carregando tenants...</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- MODAL: Criar/Editar Tenant -->
+      <div id="modalTenant" class="modal">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h3 id="modalTenantTitle">Novo Tenant</h3>
+            <span class="close" data-close>&times;</span>
+          </div>
+          <div class="modal-body">
+            <form id="formTenant">
+              <input type="hidden" id="tenantFormId">
+              <div class="form-row">
+                <label>Nome do Tenant</label>
+                <input type="text" id="tenantFormName" required placeholder="Ex: Empresa XYZ">
+              </div>
+              <div class="form-row">
+                <label>Status</label>
+                <select id="tenantFormStatus" required>
+                  <option value="active">Ativo</option>
+                  <option value="blocked">Bloqueado</option>
+                </select>
+              </div>
+              <div class="form-row">
+                <label>Limite de Instâncias</label>
+                <input type="number" id="tenantFormInstanceLimit" value="1" min="0" required>
+              </div>
+              <div class="form-row">
+                <label>Limite de Envios Diários (0 = ilimitado)</label>
+                <input type="number" id="tenantFormDailyLimit" value="0" min="0" required>
+              </div>
+              <div class="form-actions">
+                <button type="button" class="btn btn-secondary" data-close>Cancelar</button>
+                <button type="button" class="btn btn-danger" id="btnDeleteTenantModal" style="display:none;">Deletar</button>
+                <button type="submit" class="btn btn-primary">Salvar</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+
+      <section id="admin-otp" class="panel">
+        <div class="card">
+          <h2>Configuração de OTP (WhatsApp)</h2>
+          <p class="card-hint">Configure canais de OTP (WhatsApp, Email e SMS).</p>
+          <form id="formOtpConfig" style="margin-top: 1.5rem;">
+            <div class="form-row">
+              <label>Canais habilitados</label>
+              <div style="display:flex; gap:1rem; flex-wrap:wrap; margin-top:.3rem;">
+                <label style="display:flex; align-items:center; gap:.4rem; margin:0;"><input type="checkbox" id="otpChannelWhatsApp" checked> WhatsApp</label>
+                <label style="display:flex; align-items:center; gap:.4rem; margin:0;"><input type="checkbox" id="otpChannelEmail"> Email</label>
+                <label style="display:flex; align-items:center; gap:.4rem; margin:0;"><input type="checkbox" id="otpChannelSms"> SMS</label>
+              </div>
+            </div>
+
+            <div class="form-row">
+              <label>WhatsApp Endpoint (POST)</label>
+              <input type="url" id="otpUrl" required placeholder="https://api.provider.com/send">
+            </div>
+            <div class="form-row">
+              <label>WhatsApp Token de Autorização (Bearer)</label>
+              <input type="text" id="otpToken" placeholder="Seu token de API">
+            </div>
+            <div class="form-row">
+              <label>WhatsApp Template do Body (JSON)</label>
+              <textarea id="otpTemplate" rows="8" style="font-family: 'JetBrains Mono', monospace; font-size: 0.85rem;"
+                placeholder='{
+  "instance": "Fagner",
+  "to": "{{number}}",
+  "text": "Visite nosso site:",
+  "buttons": [
+    {
+      "type": "url",
+      "text": "Acessar Site",
+      "url": "{{url_confimar_otp}}"
+    },
+    {
+      "type": "copy",
+      "text": "Copiar",
+      "copyCode": "{{code_otp}}"
+    }
+  ],
+  "footer": "RZ Sender"
+}'></textarea>
+              <span class="field-hint">Variáveis: <code>{{number}}</code>, <code>{{code_otp}}</code>, <code>{{url_confimar_otp}}</code>.</span>
+            </div>
+
+            <div class="form-row">
+              <label>SMTP Host</label>
+              <input type="text" id="smtpHost" placeholder="smtp.gmail.com">
+            </div>
+            <div class="form-row">
+              <label>SMTP Port</label>
+              <input type="number" id="smtpPort" value="587" min="1">
+            </div>
+            <div class="form-row">
+              <label>SMTP Secure (true/false)</label>
+              <select id="smtpSecure">
+                <option value="false" selected>false</option>
+                <option value="true">true</option>
+              </select>
+            </div>
+            <div class="form-row">
+              <label>SMTP User (Email remetente)</label>
+              <input type="text" id="smtpUser" placeholder="comprasreidozap@gmail.com">
+            </div>
+            <div class="form-row">
+              <label>SMTP App Password</label>
+              <input type="text" id="smtpPass" placeholder="Senha de app">
+            </div>
+            <div class="form-row">
+              <label>SMTP From (opcional)</label>
+              <input type="text" id="smtpFrom" placeholder="comprasreidozap@gmail.com">
+            </div>
+
+            <div class="form-row">
+              <label>SMS URL</label>
+              <input type="url" id="smsUrl" placeholder="https://sms.comtele.com.br/api/v2/send">
+            </div>
+            <div class="form-row">
+              <label>SMS Auth Key</label>
+              <input type="text" id="smsAuthKey" placeholder="e1a79b43-8b04-447d-abde-ba43617c0260">
+            </div>
+            <div class="form-row">
+              <label>SMS Sender</label>
+              <input type="text" id="smsSender" placeholder="RZSender">
+            </div>
+
+            <button type="submit" id="btnSaveOtp" class="btn btn-primary">Salvar Configuração</button>
+            <div id="otpSaveStatus" class="status hidden" style="margin-top: 1rem;"></div>
+          </form>
+        </div>
+      </section>
+
+      <section id="admin-credentials" class="panel">
+        <div class="card">
+          <div class="card-header-actions">
+            <h2>Credenciais para Integração Externa</h2>
+          </div>
+          <p class="card-hint">Use estas credenciais para outro sistema criar tenant, criar conexão e enviar mensagens.</p>
+
+          <div class="form-row">
+            <label>URL Base da API</label>
+            <div class="credentials-row">
+              <input type="text" id="credBaseUrl" readonly>
+              <button type="button" class="btn btn-small btn-ghost" id="btnCopyBaseUrl">Copiar</button>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <label>Token Bearer (sessão atual)</label>
+            <div class="credentials-row">
+              <input type="text" id="credToken" readonly>
+              <button type="button" class="btn btn-small btn-ghost" id="btnCopyToken">Copiar</button>
+            </div>
+            <span class="field-hint">Header obrigatório: <code>Authorization: Bearer SEU_TOKEN</code></span>
+          </div>
+
+          <div class="form-row">
+            <label>Tenant Context para Super Admin</label>
+            <textarea id="credTenantHint" rows="4" readonly></textarea>
+          </div>
+
+          <div id="credCopyStatus" class="status hidden"></div>
+        </div>
+      </section>
+
+      <!-- MODAL EDIT TENANT -->
+      <div id="modalEditTenant" class="modal">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h3>Editar Empresa</h3>
+            <span class="close" data-close>&times;</span>
+          </div>
+          <div class="modal-body">
+            <form id="formEditTenant">
+              <input type="hidden" id="editTenantId">
+              <div class="form-group">
+                <label>Nome da Empresa</label>
+                <input type="text" id="editTenantName" class="form-control" required>
+              </div>
+              <div class="form-group">
+                <label>Status</label>
+                <select id="editTenantStatus" class="form-control">
+                  <option value="active">Ativo</option>
+                  <option value="blocked">Bloqueado (Inadimplente)</option>
+                  <option value="pending_verification">Pendente</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label>Vencimento (Data Limite)</label>
+                <input type="date" id="editTenantDueDate" class="form-control">
+                <small class="text-muted">Deixe em branco para acesso ilimitado/trial.</small>
+              </div>
+              <div class="grid-2">
+                <div class="form-group">
+                  <label>Limite Instâncias</label>
+                  <input type="number" id="editTenantInstLimit" class="form-control" min="1" required>
+                </div>
+                <div class="form-group">
+                  <label>Limite Envios Diários</label>
+                  <input type="number" id="editTenantDailyLimit" class="form-control" min="0" required>
+                </div>
+              </div>
+              <div class="form-actions">
+                <button type="button" class="btn btn-secondary" onclick="deleteTenant()">Excluir Empresa</button>
+                <button type="submit" class="btn btn-primary">Salvar Alterações</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+
+      <section id="admin-docs" class="panel">
+        <div class="card playground">
+          <div class="header-action">
+            <div>
+              <h2>Gerador de Requisições (Playground)</h2>
+              <p class="text-muted" style="margin: 0; font-size: 0.9em;">Gere comandos cURL prontos para uso em
+                segundos.</p>
+            </div>
+            <span class="badge badge-accent">Novo</span>
+          </div>
+
+          <div class="playground-grid-modern">
+            <div class="pg-col">
+              <div class="form-group">
+                <label>1. Instância de Envio</label>
+                <select id="pgInstance" class="form-control">
+                  <option value="main">Carregando...</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label>2. Número Destino (DDI+DDD+Num)</label>
+                <input type="text" id="pgTo" class="form-control" placeholder="5511999999999">
+              </div>
+              <div class="form-group">
+                <label>3. Formato da Mensagem</label>
+                <select id="pgType" class="form-control">
+                  <option value="send_text">Texto Simples</option>
+                  <option value="send_menu">Menu de Opções</option>
+                  <option value="send_buttons_helpers">Botões de Resposta</option>
+                  <option value="send_interactive_helpers">Botões Interativos (CTA)</option>
+                  <option value="send_list_helpers">Lista de Seleção</option>
+                  <option value="send_poll">Enquete</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="pg-col pg-dynamic-area">
+              <label>4. Conteúdo da Mensagem</label>
+              <div id="pgFields" class="pg-fields-container">
+                <!-- Fields populated by JS -->
+              </div>
+            </div>
+          </div>
+
+          <div class="pg-output-section">
+            <div class="header-action">
+              <label><i class="fas fa-terminal"></i> Comando cURL Gerado</label>
+              <div class="pg-actions">
+                <button type="button" id="btnSendPG" class="btn btn-small btn-primary">Enviar teste</button>
+                <button type="button" id="btnCopyPG" class="btn btn-small btn-outline">
+                  <i class="fas fa-copy"></i> Copiar
+                </button>
+              </div>
+            </div>
+            <div id="pgSendStatus" class="status hidden"></div>
+            <pre id="pgCurlOutput" class="pg-code language-bash">Aguardando dados...</pre>
+
+            <div class="pg-output-grid">
+              <div>
+                <div class="header-action" style="margin-top: 1rem;">
+                  <label><i class="fas fa-code"></i> JSON Body</label>
+                </div>
+                <pre id="pgJsonOutput" class="pg-code language-json">{}</pre>
+              </div>
+              <div>
+                <div class="header-action" style="margin-top: 1rem;">
+                  <label>Preview no celular</label>
+                </div>
+                <div class="pg-phone">
+                  <div class="pg-phone-header">WhatsApp</div>
+                  <div class="pg-phone-body">
+                    <div class="pg-phone-msg">
+                      <div id="pgPreviewText">Mensagem de preview</div>
+                      <div id="pgPreviewFooter" class="pg-phone-footer"></div>
+                      <div id="pgPreviewButtons" class="pg-phone-buttons"></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header-actions">
+            <h2>Documentação Completa da API (Super Admin)</h2>
+            <button type="button" id="btnDownloadApiDocs" class="btn btn-small btn-ghost">Baixar documentação</button>
+          </div>
+          <p>Fluxo completo para integração externa: criar tenant, criar instância, obter QR e enviar todos os tipos de mensagem.</p>
+
+          <div class="doc-section">
+            <h3>1) Credenciais e Base URL</h3>
+            <pre>Base URL: https://SEU_DOMINIO
+Header obrigatório: Authorization: Bearer &lt;TOKEN_JWT&gt;
+Content-Type: application/json</pre>
+          </div>
+
+          <div class="doc-section">
+            <h3>2) Criar novo Tenant (Super Admin)</h3>
+            <div class="endpoint">
+              <strong>POST /admin/tenants</strong>
+              <pre>{
+  "name": "Empresa XPTO",
+  "instance_limit": 3,
+  "daily_send_limit": 1000
+}</pre>
+            </div>
+          </div>
+
+          <div class="doc-section">
+            <h3>3) Criar instância para um tenant específico</h3>
+            <div class="endpoint">
+              <strong>POST /v1/instances</strong>
+              <pre>{
+  "tenantId": "UUID_DO_TENANT",
+  "instance": "main"
+}</pre>
+              <p class="card-hint">Quando o usuário é <strong>superadmin</strong>, envie <code>tenantId</code> no body (ou query).</p>
+            </div>
+          </div>
+
+          <div class="doc-section">
+            <h3>4) Gerar e consultar QR da instância</h3>
+            <div class="endpoint">
+              <strong>GET /v1/instances/:name/qr</strong>
+              <pre>Resposta:
+{
+  "ok": true,
+  "instance": "main",
+  "qr": "data:image/png;base64,..."
+}</pre>
+            </div>
+            <div class="endpoint">
+              <strong>GET /v1/instances?tenantId=UUID_DO_TENANT</strong>
+              <pre>Lista instâncias e status (connecting, qr, connected, disconnected).</pre>
+            </div>
+          </div>
+
+          <div class="doc-section">
+            <h3>5) Tipos de envio suportados</h3>
+            <div class="endpoint">
+              <strong>POST /v1/messages/send_text</strong> - Texto simples
+              <pre>{
+  "instance": "main",
+  "to": "5511999999999",
+  "text": "Olá! Mensagem simples",
+  "footer": "RZ Sender"
+}</pre>
+            </div>
+            <div class="endpoint">
+              <strong>POST /v1/messages/send_image</strong> - Imagem
+              <pre>{
+  "instance": "main",
+  "to": "5511999999999",
+  "imageUrl": "https://seu-cdn.com/oferta.jpg",
+  "caption": "Confira nossa oferta!"
+}</pre>
+            </div>
+            <div class="endpoint">
+              <strong>POST /v1/messages/send_video</strong> - Vídeo
+              <pre>{
+  "instance": "main",
+  "to": "5511999999999",
+  "videoUrl": "https://seu-cdn.com/apresentacao.mp4",
+  "caption": "Veja este vídeo"
+}</pre>
+            </div>
+          </div>
+
+          <div class="doc-section">
+            <h3>6) Botões e interativos (todos)</h3>
+
+            <div class="endpoint">
+              <strong>POST /v1/messages/send_menu</strong> - Menu de Texto
+              <pre>{
+  "instance": "main",
+  "to": "5511999999999",
+  "title": "Titulo",
+  "text": "Corpo da mensagem",
+  "footer": "Rodapé",
+  "options": ["Opção 1", "Opção 2"]
+}</pre>
+            </div>
+
+            <div class="endpoint">
+              <strong>POST /v1/messages/send_buttons_helpers</strong> - Botões de Resposta (Quick Reply)
+              <pre>{
+  "instance": "main",
+  "to": "5511999999999",
+  "text": "Escolha uma opção:",
+  "buttons": [
+    { "id": "opt_1", "text": "Sim" },
+    { "id": "opt_2", "text": "Não" }
+  ],
+  "footer": "Rodapé"
+}</pre>
+            </div>
+
+            <div class="endpoint">
+              <strong>POST /v1/messages/send_interactive_helpers</strong> - Botões Interativos (CTA)
+              <pre>{
+  "instance": "main",
+  "to": "5511999999999",
+  "text": "Assine agora:",
+  "buttons": [
+    { "type": "url", "text": "Google", "url": "https://google.com" },
+    { "type": "copy", "text": "Copiar cupom", "copyCode": "CUPOM10" },
+    { "type": "call", "text": "Ligar", "phoneNumber": "5511999999999" }
+  ],
+  "footer": "Rodapé"
+}</pre>
+            </div>
+
+            <div class="endpoint">
+              <strong>POST /v1/messages/send_list_helpers</strong> - Listas (Dropdown)
+              <pre>{
+  "instance": "main",
+  "to": "5511999999999",
+  "text": "Selecione:",
+  "buttonText": "Ver Opções",
+  "sections": [
+    {
+      "title": "Sessão 1",
+      "rows": [
+        { "title": "Item 1", "description": "Desc do item", "id": "id1" }
+      ]
+    }
+  ],
+  "footer": "Rodapé"
+}</pre>
+            </div>
+
+            <div class="endpoint">
+              <strong>POST /v1/messages/send_poll</strong> - Enquetes
+              <pre>{
+  "instance": "main",
+  "to": "5511999999999",
+  "name": "Qual sua cor favorita?",
+  "options": ["Azul", "Verde"],
+  "selectableCount": 1
+}</pre>
+            </div>
+
+            <div class="endpoint">
+              <strong>POST /v1/messages/send_carousel_helpers</strong> - Carrossel com imagem e botões
+              <pre>{
+  "instance": "main",
+  "to": "5511999999999",
+  "text": "Ofertas da semana",
+  "footer": "RZ Sender",
+  "cards": [
+    {
+      "title": "Plano Pro",
+      "body": "Acesso completo",
+      "footer": "Promoção",
+      "imageUrl": "https://seu-cdn.com/plano-pro.jpg",
+      "buttons": [
+        { "id": "assinar_pro", "text": "Assinar" }
+      ]
+    }
+  ]
+}</pre>
+            </div>
+          </div>
+
+          <div class="doc-section">
+            <h3>7) Endpoint unificado para outro sistema</h3>
+            <div class="endpoint">
+              <strong>POST /api/integrations/send</strong>
+              <pre>{
+  "instance": "main",
+  "to": "5511999999999",
+  "type": "image",
+  "payload": {
+    "imageUrl": "https://seu-cdn.com/arquivo.jpg",
+    "caption": "Teste via endpoint unificado"
+  }
+}</pre>
+            </div>
+            <div class="endpoint">
+              <strong>GET /api/integrations/instances</strong> - Lista instâncias disponíveis para o tenant do token.
+            </div>
+          </div>
+
+          <div class="doc-section">
+            <h3>8) Exemplo rápido de fluxo (cURL)</h3>
+            <pre># 1) Criar tenant
+curl -X POST "$BASE/admin/tenants" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"name":"Empresa XPTO","instance_limit":3,"daily_send_limit":1000}'
+
+# 2) Criar instância para tenant
+curl -X POST "$BASE/v1/instances" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"tenantId":"UUID_DO_TENANT","instance":"main"}'
+
+# 3) Enviar texto
+curl -X POST "$BASE/v1/messages/send_text" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"instance":"main","to":"5511999999999","text":"Olá do RZ Sender"}'</pre>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer
+      style="text-align: center; margin-top: 3rem; padding-bottom: 1.5rem; color: var(--text-muted); font-size: 0.85rem;">
+      <p>RZ Sender &copy; 2026. Todos os direitos reservados.</p>
+      <p>Suporte: (13) 98157-7934</p>
+    </footer>
+  </div>
+  <!-- Modal: Novo Usuário (Tenant Admin) -->
+  <div id="modalNewUser" class="modal">
+    <div class="modal-content">
+      <span class="modal-close" data-close>&times;</span>
+      <h2>Novo Usuário</h2>
+      <p>Adicione um colaborador à sua empresa.</p>
+      <form id="formNewUser">
+        <div class="form-row">
+          <label>Nome Completo</label>
+          <input type="text" id="uName" required placeholder="João Silva">
+        </div>
+        <div class="form-row">
+          <label>E-mail</label>
+          <input type="email" id="uEmail" required placeholder="joao@empresa.com">
+        </div>
+        <div class="form-row">
+          <label>Senha</label>
+          <input type="password" id="uPass" required minlength="8" placeholder="Mínimo 8 caracteres">
+        </div>
+        <div class="form-row">
+          <label>Nível de Acesso</label>
+          <select id="uRole">
+            <option value="user_tenant">Operador (Apenas envios)</option>
+            <option value="admin_tenant">Administrador (Gerecia usuários)</option>
+          </select>
+        </div>
+        <div class="modal-footer">
+          <button type="submit" class="btn btn-primary">Criar Usuário</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal: Novo Tenant (Superadmin) -->
+  <div id="modalNewTenant" class="modal">
+    <div class="modal-content">
+      <span class="modal-close" data-close>&times;</span>
+      <h2>Novo Tenant</h2>
+      <p>Cadastre uma nova empresa no sistema.</p>
+      <form id="formNewTenant">
+        <div class="form-row">
+          <label>Nome da Empresa</label>
+          <input type="text" id="tName" required placeholder="Nome da Empresa">
+        </div>
+        <div class="form-row">
+          <label>Limite de Instâncias</label>
+          <input type="number" id="tLimit" value="3" min="1">
+        </div>
+        <div class="form-row">
+          <label>Limite Diário de Envios</label>
+          <input type="number" id="tSendLimit" value="500" min="0">
+        </div>
+        <div class="modal-footer">
+          <button type="submit" class="btn btn-primary">Criar Tenant</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal: Importação CSV de Destinatários -->
+  <div id="modalCsvImportChoice" class="modal">
+    <div class="modal-content">
+      <span class="modal-close" data-close>&times;</span>
+      <h2>Importar destinatários</h2>
+      <p>Substituir lista atual ou adicionar os números importados ao final?</p>
+      <div class="modal-footer csv-import-footer">
+        <button type="button" id="btnCsvReplace" class="btn btn-primary">Substituir</button>
+        <button type="button" id="btnCsvAppend" class="btn btn-ghost">Adicionar ao final</button>
+        <button type="button" id="btnCsvCancel" class="btn btn-danger">Cancelar</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="/app.js?v=20260226-1"></script>
+</body>
+
+</html>

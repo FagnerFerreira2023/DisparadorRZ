@@ -1,0 +1,23 @@
+version: '3.8'
+
+services:
+  rz-sender:
+    build: .
+    container_name: rz-sender-api
+    restart: always
+    ports:
+      - "8787:8787"
+    volumes:
+      - ./auth:/app/auth
+      - .env:/app/.env
+    environment:
+      - NODE_ENV=production
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10mb"
+        max-file: "3"
+
+networks:
+  default:
+    name: rz-sender-network

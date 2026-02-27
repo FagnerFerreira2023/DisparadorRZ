@@ -290,8 +290,7 @@ router.post('/register', async (req: Request, res: Response) => {
         );
         const tenantId = tenantResult[0].id;
 
-        // Create Admin User in 'active' status but linked to 'pending_verification' tenant
-        // The user status 'active' means they can attempt OTP verification
+        // Cria Admin User em status 'active' e permite login direto
         const passwordHash = password ? await hashPassword(password) : 'OTP_ONLY';
         await db.query(
             `INSERT INTO users (tenant_id, name, email, whatsapp, password_hash, role, status)
@@ -299,18 +298,11 @@ router.post('/register', async (req: Request, res: Response) => {
             [tenantId, name, cleanEmail, cleanWhatsApp, passwordHash]
         );
 
-        // Issue and send OTP
-        const { code, delivery } = await otpService.issueOTP(cleanWhatsApp);
-
-        // Save to tenant record for admin visibility
-        await db.query(`UPDATE tenants SET last_otp = $1 WHERE id = $2`, [code, tenantId]);
-
         return res.status(201).json({
             ok: true,
-            message: 'registration_pending_verification',
+            message: 'registration_success',
             whatsapp: cleanWhatsApp,
-            email: cleanEmail,
-            delivery
+            email: cleanEmail
         });
     } catch (err: any) {
         console.error('[AUTH] Register error:', err);

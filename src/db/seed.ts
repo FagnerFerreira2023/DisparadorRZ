@@ -14,12 +14,17 @@ async function seed() {
 
         // 1. Create demo tenant
         console.log('[SEED] Creating demo tenant...');
+        // Cria o tenant demo com ID fixo (exemplo: 12)
+        const fixedTenantId = '12';
+        await db.query(
+            `INSERT INTO tenants (id, name, status, instance_limit, daily_send_limit)
+             VALUES ($1, $2, $3, $4, $5)
+             ON CONFLICT (id) DO NOTHING`,
+            [fixedTenantId, 'Tenant Demo', 'active', 5, 2000]
+        );
         const tenantResult = await db.query<{ id: string }>(
-            `INSERT INTO tenants (name, status, instance_limit, daily_send_limit)
-       VALUES ($1, $2, $3, $4)
-       ON CONFLICT DO NOTHING
-       RETURNING id`,
-            ['Tenant Demo', 'active', 5, 2000]
+            `SELECT id FROM tenants WHERE id = $1`,
+            [fixedTenantId]
         );
 
         let tenantId: string;
@@ -36,7 +41,7 @@ async function seed() {
             console.log(`[SEED] ✓ Demo tenant already exists: ${tenantId}`);
         }
 
-        // 2. Create superadmin (tenant_id = NULL)
+        // 2. Create superadmin (tenant_id = demo)
         console.log('[SEED] Creating superadmin user...');
         const superadminHash = await bcrypt.hash(superadminDefaultPassword, 12);
 
@@ -63,10 +68,10 @@ async function seed() {
                      password_hash = $2,
                      role = 'superadmin',
                      status = 'active',
-                     tenant_id = NULL,
+                     tenant_id = $3,
                      updated_at = now()
-                 WHERE id = $3`,
-                [superadminDefaultWhatsApp, superadminHash, targetSuperadmin[0].id]
+                 WHERE id = $4`,
+                [superadminDefaultWhatsApp, superadminHash, tenantId, targetSuperadmin[0].id]
             );
 
             if (legacySuperadmin.length > 0 && legacySuperadmin[0].id !== targetSuperadmin[0].id) {
@@ -83,10 +88,10 @@ async function seed() {
                      password_hash = $3,
                      role = 'superadmin',
                      status = 'active',
-                     tenant_id = NULL,
+                     tenant_id = $4,
                      updated_at = now()
-                 WHERE id = $4`,
-                [superadminDefaultEmail, superadminDefaultWhatsApp, superadminHash, legacySuperadmin[0].id]
+                 WHERE id = $5`,
+                [superadminDefaultEmail, superadminDefaultWhatsApp, superadminHash, tenantId, legacySuperadmin[0].id]
             );
 
             console.log(`[SEED] ✓ Legacy superadmin migrated to: ${superadminDefaultEmail}`);
@@ -94,7 +99,7 @@ async function seed() {
             await db.query(
                 `INSERT INTO users (tenant_id, name, email, whatsapp, password_hash, role, status)
                  VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-                [null, 'Super Admin', superadminDefaultEmail, superadminDefaultWhatsApp, superadminHash, 'superadmin', 'active']
+                [tenantId, 'Super Admin', superadminDefaultEmail, superadminDefaultWhatsApp, superadminHash, 'superadmin', 'active']
             );
 
             console.log(`[SEED] ✓ Superadmin created: ${superadminDefaultEmail}`);
@@ -107,14 +112,14 @@ async function seed() {
             `INSERT INTO users (tenant_id, name, email, whatsapp, password_hash, role, status)
              VALUES ($1, $2, $3, $4, $5, $6, $7)
              ON CONFLICT (lower(email)) DO NOTHING`,
-            [null, 'Admin', adminDefaultEmail, null, adminHash, 'superadmin', 'active']
+            [tenantId, 'Admin', adminDefaultEmail, null, adminHash, 'superadmin', 'active']
         );
 
         await db.query(
             `UPDATE users
-             SET password_hash = $1, role = 'superadmin', status = 'active', tenant_id = NULL, updated_at = now()
-             WHERE lower(email) = lower($2)`,
-            [adminHash, adminDefaultEmail]
+             SET password_hash = $1, role = 'superadmin', status = 'active', tenant_id = $2, updated_at = now()
+             WHERE lower(email) = lower($3)`,
+            [adminHash, tenantId, adminDefaultEmail]
         );
 
         // 3. Create admin_tenant for demo tenant
